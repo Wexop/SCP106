@@ -1,11 +1,16 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections;
+using System.Collections.Generic;
 using Unity.Netcode;
 using UnityEngine;
+using Random = UnityEngine.Random;
 
 namespace SCP106.Scripts;
 
 public class SCP106EnemyAI: EnemyAI
 {
+    private static readonly int GoToPortal = Animator.StringToHash("GoToPortal");
+    private static readonly int OutOfPortal = Animator.StringToHash("OutOfPortal");
     public GameObject PortalObject;
 
     private float wallDistanceToSpawnPortal = 10f;
@@ -13,8 +18,8 @@ public class SCP106EnemyAI: EnemyAI
     
     public LayerMask layerRoom;
     
-    private float createPortalDelay = 5f;
-    private float createPortalTimer = 30f;
+    private float createPortalDelay = 30f;
+    private float createPortalTimer = 5f;
 
     private List<Vector3> savedWallPosition = new List<Vector3>();
     private float saveWallPosTimer = 0f;
@@ -57,10 +62,10 @@ public class SCP106EnemyAI: EnemyAI
         if (saveWallPosTimer <= 0 && Physics.Raycast(eye.position, direction, out RaycastHit hitWall, 10 ,layerRoom))
         {
             saveWallPosTimer = saveWallPosDelay;
-            SavePortalPosition(hitWall.point);
+            SavePortalPosition(hitWall.point - direction * 0.2f);
             
             Debug.Log($"Add wall point {hitWall.point}");
-            
+
         }
     }
 
@@ -77,15 +82,15 @@ public class SCP106EnemyAI: EnemyAI
                 {
                     if (createPortalTimer <= 0)
                     {
+                        if(alreadyCreatedPortal) break;
+                        
+                        Debug.Log($"Create Portal {createPortalTimer} {isGoingToPortal} {savedWallPosition.Count}");
                         if (!isGoingToPortal && savedWallPosition.Count > 1)
                         {
                             var pos = savedWallPosition[Random.Range(0, savedWallPosition.Count)];
                             StopSearch(currentSearch);
-                            currentSearch = null;
-                            
-                            moveTowardsDestination = true;
-                            movingTowardsTargetPlayer = false;
-                            destination = pos;
+
+                            SetDestinationToPosition(pos);
              
                             lastPortalPosition = pos;
                             isGoingToPortal = true;
@@ -93,15 +98,21 @@ public class SCP106EnemyAI: EnemyAI
                             break;
                         }
 
-                        if (isGoingToPortal && Vector3.Distance(transform.position, lastPortalPosition) < 1f)
+                        if (isGoingToPortal && agent.remainingDistance <= agent.stoppingDistance)
                         {
-                            isGoingToPortal = false;
-                            SwitchToBehaviourState(1);
+                            Debug.Log("Going Portal");
+                            
+                            var pos = savedWallPosition[Random.Range(0, savedWallPosition.Count)];
+               
+                            GoToPortalServerRpc(transform.position, pos);
+                            alreadyCreatedPortal = true;
                             break;
                         }
+                        
+                        break;
                     }
 
-                    
+                    Debug.Log("Search");
                     if (currentSearch.inProgress) break;
                     AISearchRoutine aiSearchRoutine = new AISearchRoutine();
                     aiSearchRoutine.searchWidth = 100f;
@@ -115,24 +126,7 @@ public class SCP106EnemyAI: EnemyAI
             {
                 if (IsServer)
                 {
-                    if (!alreadyCreatedPortal)
-                    {
-                        CreatePortalServerRpc(lastPortalPosition);
-                        alreadyCreatedPortal = true;
-                    }
-                   
-                    
-                    if (Vector3.Distance(eye.position, lastPortalPosition) < wallDistanceToSpawnPortal)
-                    {
-                        
-                        var pos = savedWallPosition[Random.Range(0, savedWallPosition.Count)];
-                        CreatePortalServerRpc(pos);
-                        transform.position = pos;
-                        SyncPositionToClients();
-                        
-                        SwitchToBehaviourState(0);
-                        alreadyCreatedPortal = false;
-                    }
+
                 }
    
                 break;
@@ -156,26 +150,62 @@ public class SCP106EnemyAI: EnemyAI
     }
 
     [ServerRpc]
-    public void CreatePortalServerRpc(Vector3 position, bool goToPos = false)
+    public void CreatePortalServerRpc(Vector3 position, Vector3 connectedPosition, bool goToPos = false)
     {
-        CreatePortalClientRpc(position, goToPos);
+        CreatePortalClientRpc(position, connectedPosition, goToPos );
     }
 
     [ClientRpc]
-    public void CreatePortalClientRpc(Vector3 pos, bool goToPos)
+    public void CreatePortalClientRpc(Vector3 position, Vector3 connectedPosition, bool goToPos = false)
     {
         
         if (PortalObject != null)
         {
-            var portal = Instantiate(PortalObject, pos, Quaternion.identity);
-            portal.transform.LookAt(pos);
+            var portal = Instantiate(PortalObject, position, Quaternion.identity);
+            portal.transform.LookAt(position);
             portal.transform.eulerAngles = new Vector3(0f, portal.transform.eulerAngles.y, 0f);
+            portal.GetComponent<SCP106Portal>().connectedPos = connectedPosition;
             if (goToPos)
             {
-                agent.SetDestination(pos);
+                agent.SetDestination(position);
                 createPortalTimer = createPortalDelay;
             }
         }
     }
+
+    [ServerRpc]
+    private void GoToPortalServerRpc(Vector3 pos, Vector3 nextPos)
+    {
+        GoToPortalClientRpc(pos, nextPos);
+    }
+    
+    [ClientRpc]
+    private void GoToPortalClientRpc(Vector3 pos, Vector3 nextPos)
+    {
+        StartCoroutine(GoToPortalLocal(pos, nextPos));
+    }
+
+    private IEnumerator GoToPortalLocal(Vector3 pos, Vector3 nextPos)
+    {
+        transform.position = pos;
+        creatureAnimator.SetTrigger(GoToPortal);
+        CreatePortalServerRpc(pos, connectedPosition: nextPos);
+        CreatePortalServerRpc(nextPos, connectedPosition: pos);
+        
+        yield return new WaitForSeconds(2);
+        
+        transform.position = nextPos;
+        creatureAnimator.SetTrigger(OutOfPortal);
+        alreadyCreatedPortal = false;
+        if(IsServer)
+        {
+            SyncPositionToClients();
+            
+            isGoingToPortal = false;
+            createPortalTimer = createPortalDelay;
+        }
+        
+    }
+    
     
 }
