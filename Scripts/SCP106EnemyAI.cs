@@ -1,6 +1,7 @@
-﻿using System;
-using System.Collections;
+﻿using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
+using GameNetcodeStuff;
 using Unity.Netcode;
 using UnityEngine;
 using Random = UnityEngine.Random;
@@ -16,13 +17,13 @@ public class SCP106EnemyAI: EnemyAI
     public GameObject PortalObject;
 
     private float visionWidth = 60f;
-    private float baseSpeed = 3.5f;
-    private float runSpeed = 4.5f;
+    private float baseSpeed = 5f;
+    private float runSpeed = 7f;
+    private float inDimensionSpeed = 9f;
 
-    private float spawningTimer = 2f;
+    private float spawningTimer = 7f;
 
     private float wallDistanceToSpawnPortal = 10f;
-    private Vector3 lastPortalPosition;
     
     public LayerMask layerRoom;
     
@@ -48,6 +49,8 @@ public class SCP106EnemyAI: EnemyAI
     private List<ulong> playersIdsInDimension = new List<ulong>();
     private float goToPocketDimensionTimer = 30f;
     private float goToPocketDimensionDelay = 30f;
+
+    private Vector3 spawnPos;
     public override void Start()
     {
 
@@ -56,6 +59,8 @@ public class SCP106EnemyAI: EnemyAI
         agent.speed = baseSpeed;
         agent.acceleration = 255f;
         agent.angularSpeed = 900f;
+        
+        spawnPos = transform.position;
     }
 
     public override void Update()
@@ -81,15 +86,20 @@ public class SCP106EnemyAI: EnemyAI
         
         if(!IsServer) return;
 
-        if (goToPocketDimensionTimer <= 0)
+        if (goToPocketDimensionTimer <= 0 && currentBehaviourStateIndex != 2)
         {
+            StopSearch(currentSearch);
+            agent.enabled = false;
+            transform.position = SCP106Plugin.instance.actualDimensionObjectManager.spawnPosition.position;
+            agent.enabled = true;
+            SyncPositionToClients();
             SwitchToBehaviourState(2);
         }
         
         //createPortalTimer -= Time.deltaTime;
         saveWallPosTimer -= Time.deltaTime;
         aiInterval -= Time.deltaTime;
-        if(playersIdsInDimension.Count > 0) goToPocketDimensionTimer -= Time.deltaTime;
+        if(GetPlayerCountInDimension() > 0) goToPocketDimensionTimer -= Time.deltaTime;
         
         if (aiInterval <= 0 && IsOwner)
         {
@@ -99,13 +109,10 @@ public class SCP106EnemyAI: EnemyAI
         
         Vector3 direction = transform.forward;
 
-        if (saveWallPosTimer <= 0 && Physics.Raycast(eye.position, direction, out RaycastHit hitWall, 10 ,layerRoom))
+        if (saveWallPosTimer <= 0 && Physics.Raycast(eye.position, direction, out RaycastHit hitWall, 10 ,layerRoom) && currentBehaviourStateIndex != 2)
         {
             saveWallPosTimer = saveWallPosDelay;
             SavePortalPosition(hitWall.point - direction * 0.2f);
-            
-            Debug.Log($"Add wall point {hitWall.point}");
-
         }
     }
 
@@ -113,7 +120,7 @@ public class SCP106EnemyAI: EnemyAI
     {
         base.DoAIInterval();
         
-        if(spawningTimer > 0) return;
+        if(spawningTimer > 0 || stunNormalizedTimer > 0) return;
 
         switch (currentBehaviourStateIndex)
         {
@@ -136,8 +143,7 @@ public class SCP106EnemyAI: EnemyAI
                             StopSearch(currentSearch);
 
                             SetDestinationToPosition(pos);
-             
-                            lastPortalPosition = pos;
+                            
                             isGoingToPortal = true;
                         
                             break;
@@ -157,7 +163,6 @@ public class SCP106EnemyAI: EnemyAI
                         break;
                     }
                     
-                    Debug.Log("Search");
                     if (currentSearch.inProgress) break;
                     AISearchRoutine aiSearchRoutine = new AISearchRoutine();
                     aiSearchRoutine.searchWidth = 100f;
@@ -173,6 +178,7 @@ public class SCP106EnemyAI: EnemyAI
                 break;
                 
             }
+            //CHASING PLAYER
             case 1:
             {
                 if (chaseTimer <= 0f)
@@ -196,15 +202,46 @@ public class SCP106EnemyAI: EnemyAI
                 break;
                 
             }
+            //IN POCKET DIMENSION
             case 2:
             {
-                StopSearch(currentSearch);
-                transform.position = SCP106Plugin.instance.actualDimensionObjectManager.spawnPosition.position;
-                SyncPositionToClients();
+
+                var player = GetClosestPlayer();
+                if (PlayerIsTargetable(player))
+                {
+                    SetMovingTowardsTargetPlayer(player);
+                }
+                
+
                 break;
             }
         }
         
+    }
+    
+    private void AllClientOnSwitchBehaviorState()
+    {
+        switch (currentBehaviourStateIndex)
+        {
+            case 0:
+            {
+                agent.speed = baseSpeed;
+                creatureAnimator.SetBool(Run, false);
+                break;
+            }
+            case 1:
+            {
+                agent.speed = runSpeed;
+                creatureAnimator.SetBool(Run, true);
+                break;
+            }
+            case 2:
+            {
+                agent.speed = inDimensionSpeed;
+                creatureAnimator.SetBool(Run, true);
+                break;
+            }
+        }
     }
 
     private void SavePortalPosition(Vector3 pos)
@@ -218,6 +255,20 @@ public class SCP106EnemyAI: EnemyAI
         });
         
         if(canSave) savedWallPosition.Add(pos);
+    }
+
+    int GetPlayerCountInDimension()
+    {
+        int count = 0;
+        StartOfRound.Instance.allPlayerScripts.ToList().ForEach(p =>
+        {
+            if (!p.isPlayerDead && playersIdsInDimension.Contains(p.playerClientId))
+            {
+                count++;
+            }
+        });
+        
+        return count;
     }
 
     [ServerRpc]
@@ -278,37 +329,59 @@ public class SCP106EnemyAI: EnemyAI
         
     }
 
-    private void AllClientOnSwitchBehaviorState()
+    [ServerRpc(RequireOwnership = false)]
+    void PlayerKilledInDimensionServerRpc(ulong id)
     {
-        switch (currentBehaviourStateIndex)
+        goToPocketDimensionTimer = goToPocketDimensionDelay;
+        agent.enabled = false;
+        transform.position = savedWallPosition.Count > 0 ? savedWallPosition[Random.Range(0, savedWallPosition.Count)] : spawnPos;
+        agent.enabled = true;
+        spawningTimer = 2f;
+        SwitchToBehaviourState(0);
+        PlayerKilledInDimensionClientRpc(id);
+    }
+    
+    [ClientRpc]
+    void PlayerKilledInDimensionClientRpc(ulong id)
+    {
+        playersIdsInDimension.Remove(id);
+        StartOfRound.Instance.allPlayerScripts.ToList().ForEach(p =>
         {
-            case 0:
+            if (p.playerClientId != id && !p.isPlayerDead && playersIdsInDimension.Contains(id))
             {
-                agent.speed = baseSpeed;
-                creatureAnimator.SetBool(Run, false);
-                break;
+                p.transform.position = savedWallPosition.Count > 0 ? savedWallPosition[Random.Range(0, savedWallPosition.Count)] : spawnPos;
             }
-            case 1:
-            {
-                agent.speed = runSpeed;
-                creatureAnimator.SetBool(Run, true);
-                break;
-            }
-            case 2:
-            {
-                creatureAnimator.SetBool(Run, true);
-                break;
-            }
-        }
+        });
+        
+    }
+
+    [ServerRpc(RequireOwnership = false)]
+    void PlayerInDimensionServerRpc(ulong id)
+    {
+
+        PlayerInDimensionClientRpc(id);
+    }
+    [ClientRpc]
+    void PlayerInDimensionClientRpc(ulong id)
+    {
+        playersIdsInDimension.Add(id);
     }
 
     public override void OnCollideWithPlayer(Collider other)
     {
+        if(spawningTimer > 0) return;
         creatureAnimator.SetTrigger(Punch);
         var player = MeetsStandardPlayerCollisionConditions(other, false, true);
+        targetPlayer = player;
         if (player != null && hitTimer <= 0)
         {
             hitTimer = hitDelay;
+            if (currentBehaviourStateIndex == 2)
+            {
+                player.KillPlayer(Vector3.forward * 3);
+                PlayerKilledInDimensionServerRpc(player.playerClientId);
+            }
+         
             if (player.health >= 40)
             {
                 player.DamagePlayer(30, causeOfDeath: CauseOfDeath.Kicking);
@@ -317,8 +390,11 @@ public class SCP106EnemyAI: EnemyAI
             {
                 SCP106Plugin.instance.InstantiateDimension();
                 player.transform.position = SCP106Plugin.instance.actualDimensionObjectManager.spawnPosition.position;
-                playersIdsInDimension.Add(player.playerSteamId);
+                PlayerInDimensionServerRpc(player.playerClientId);
+                
             }
         }
     }
+
+
 }
