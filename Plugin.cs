@@ -10,6 +10,7 @@ using LethalConfig.ConfigItems;
 using LethalConfig.ConfigItems.Options;
 using UnityEngine;
 using LethalLib.Modules;
+using SCP106.Scripts;
 using SCP106.Utils;
 
 namespace SCP106
@@ -23,8 +24,13 @@ namespace SCP106
         const string VERSION = "1.0.0";
 
         public static SCP106Plugin instance;
+
+        public GameObject dimensionObject;
+        public GameObject actualDimensionObjectInstantiated;
+        public SCP106DimensionManager actualDimensionObjectManager;
         
         public ConfigEntry<string> spawnMoonRarity;
+        public ConfigEntry<float> dimensionPosY;
 
         void Awake()
         {
@@ -40,9 +46,42 @@ namespace SCP106
             NetcodePatcher();
             LoadConfigs();
             RegisterMonster(bundle);
+            LoadDimension(bundle);
             
             
             Logger.LogInfo($"SCP_106 is ready!");
+        }
+        
+        
+        public void LoadDimension(AssetBundle bundle)
+        {
+            GameObject dimension = bundle.LoadAsset<GameObject>("Assets/LethalCompany/Mods/SCP106/DimensionSCP106.prefab");
+            dimensionObject = dimension;
+            Logger.LogInfo($"{dimension.name} FOUND");
+            
+            Utilities.FixMixerGroups(dimension);
+        }
+        
+        public void InstantiateDimension()
+        {
+            if (actualDimensionObjectInstantiated == null)
+            {
+                DestroyDimension();
+                actualDimensionObjectInstantiated = Instantiate(dimensionObject, Vector3.up * -dimensionPosY.Value, Quaternion.identity);
+                actualDimensionObjectManager = actualDimensionObjectInstantiated.GetComponent<SCP106DimensionManager>();
+            }
+
+        }
+        
+        public void DestroyDimension()
+        {
+            if (actualDimensionObjectInstantiated != null)
+            {
+                Destroy(actualDimensionObjectInstantiated);
+                Destroy(actualDimensionObjectManager);
+                actualDimensionObjectInstantiated = null;
+                actualDimensionObjectManager = null;
+            }
         }
 
         string RarityString(int rarity)
@@ -61,6 +100,10 @@ namespace SCP106
                 "Modded:40,ExperimentationLevel:20,AssuranceLevel:20,VowLevel:20,OffenseLevel:25,MarchLevel:25,RendLevel:30,DineLevel:30,TitanLevel:50,Adamance:50,Embrion:50,Artifice:55", 
                 "Chance for SCP 106 to spawn for any moon, example => assurance:100,offense:50 . You need to restart the game.");
             CreateStringConfig(spawnMoonRarity, true);
+            
+            dimensionPosY = Config.Bind("Pocket Dimension", "dimensionPosY", 550f,
+                "Dimension Y position. No need to restart the game !");
+            CreateFloatConfig(dimensionPosY, 0f, 3000f);
  
         }
         
