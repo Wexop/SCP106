@@ -17,6 +17,8 @@ public class SCP106EnemyAI: EnemyAI
 
     private static readonly int Spawn = Animator.StringToHash("Spawn");
     //public GameObject PortalObject;
+
+    public GameObject TrapObject;
    
     public ParticleSystem SendToPocketParticles;
 
@@ -37,6 +39,9 @@ public class SCP106EnemyAI: EnemyAI
     
     private float createPortalDelay = 30f;
     private float createPortalTimer = 10f;
+    
+    private float createTrapDelay = 45f;
+    private float createTrapTimer = 10f;
 
     private List<Vector3> savedWallPosition = new List<Vector3>();
     private float saveWallPosTimer = 0f;
@@ -123,6 +128,7 @@ public class SCP106EnemyAI: EnemyAI
         createPortalTimer -= Time.deltaTime;
         saveWallPosTimer -= Time.deltaTime;
         aiInterval -= Time.deltaTime;
+        createTrapTimer -= Time.deltaTime;
 
         if(currentBehaviourStateIndex == 1) chaseTimer -= Time.deltaTime;
         
@@ -139,7 +145,17 @@ public class SCP106EnemyAI: EnemyAI
         if (saveWallPosTimer <= 0 && Physics.Raycast(eye.position, direction, out RaycastHit hitWall, 10 ,layerRoom) && currentBehaviourStateIndex != 2)
         {
             saveWallPosTimer = saveWallPosDelay;
-            SavePortalPosition(hitWall.point - direction * 0.2f);
+            SavePortalPosition(hitWall.point);
+        }
+
+        if (createTrapTimer <= 0 && Physics.Raycast(eye.position, Vector3.down, out RaycastHit hitGround, 3 ,layerRoom) && currentBehaviourStateIndex != 2)
+        {
+            Debug.Log($"Create trap");
+
+            createTrapTimer = createTrapDelay;
+            var trap = Instantiate(TrapObject, hitGround.point + Vector3.up * 0.2f , Quaternion.identity);
+            SCP106Trap scp106Trap = trap.GetComponent<SCP106Trap>();
+            scp106Trap._scp106EnemyAI = this;
         }
     }
 
@@ -149,8 +165,6 @@ public class SCP106EnemyAI: EnemyAI
         
         if(spawningTimer > 0 || stunNormalizedTimer > 0 || !IsServer) return;
         
-        Debug.Log($"CHASE TIMER : {chaseTimer}");
-
         switch (currentBehaviourStateIndex)
         {
             //ROAMING
@@ -226,7 +240,6 @@ public class SCP106EnemyAI: EnemyAI
             case 1:
             {
                 targetPlayer = GetChasingPlayer();
-                Debug.Log($"PLAYER TARGET {targetPlayer != null}");
                 if (chaseTimer <= 0f)
                 {
                     TargetClosestPlayer(requireLineOfSight: true, viewWidth: visionWidth);
@@ -237,7 +250,6 @@ public class SCP106EnemyAI: EnemyAI
                     }
                     else
                     {
-                        Debug.Log("SWITCH TO 0 IN IA");
                         chaseTimer = chaseDelay;
                         SwitchToBehaviourState(0);
                     }
@@ -402,7 +414,6 @@ public class SCP106EnemyAI: EnemyAI
         agent.enabled = true;
         spawningTimer = 2f;
         creatureAnimator.SetTrigger(Spawn);
-        Debug.Log("SWITCH TO 0 IN TP RANDOM");
         SwitchToBehaviourState(0);
 
     }
@@ -418,29 +429,33 @@ public class SCP106EnemyAI: EnemyAI
     [ClientRpc]
     void PlayerKilledInDimensionClientRpc(ulong id)
     {
-        playersIdsInDimension.Remove(id);
+        
         StartOfRound.Instance.allPlayerScripts.ToList().ForEach(p =>
         {
-            if (p.playerClientId != id && !p.isPlayerDead && playersIdsInDimension.Contains(id))
+            if (p.playerClientId != id && !p.isPlayerDead && playersIdsInDimension.Contains(p.playerClientId))
             {
                 p.transform.position = savedWallPosition.Count > 0 ? savedWallPosition[Random.Range(0, savedWallPosition.Count)] : spawnPos;
             }
         });
+        playersIdsInDimension.Remove(id);
         
     }
 
     [ServerRpc(RequireOwnership = false)]
-    void PlayerInDimensionServerRpc(ulong id)
+    public void PlayerInDimensionServerRpc(ulong id, bool withParticules = true)
     {
         goToPocketDimensionTimer = goToPocketDimensionDelay;
-        PlayerInDimensionClientRpc(id);
+        PlayerInDimensionClientRpc(id, withParticules);
     }
     [ClientRpc]
-    void PlayerInDimensionClientRpc(ulong id)
+    void PlayerInDimensionClientRpc(ulong id, bool withParticules = true)
     {
         playersIdsInDimension.Add(id);
-        SendToPocketParticles.Clear();
-        SendToPocketParticles.Play();
+        if (withParticules)
+        {
+            SendToPocketParticles.Clear();
+            SendToPocketParticles.Play();
+        }
     }
 
     public override void OnCollideWithPlayer(Collider other)
