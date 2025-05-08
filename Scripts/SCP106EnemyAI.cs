@@ -24,7 +24,7 @@ public class SCP106EnemyAI: EnemyAI
     public AudioClip seePlayerSound;
     
 
-    private float visionWidth = 60f;
+    private float visionWidth = 80f;
     private float baseSpeed = 5f;
     private float runSpeed = 7f;
     private float inDimensionSpeed = 9f;
@@ -46,7 +46,7 @@ public class SCP106EnemyAI: EnemyAI
     private bool isGoingToPortal = false;
     
     private float chaseTimer = 0f;
-    private float chaseDelay = 4f;
+    private float chaseDelay = 5f;
     
     private float hitTimer = 0f;
     private float hitDelay = 1f;
@@ -64,6 +64,8 @@ public class SCP106EnemyAI: EnemyAI
 
     private Vector3 spawnPos;
     private Vector3 portalGoingToPos;
+
+    private ulong playerChasingId;
     public override void Start()
     {
 
@@ -211,6 +213,9 @@ public class SCP106EnemyAI: EnemyAI
                 else if (PlayerIsTargetable(targetPlayer))
                 {
                     chaseTimer = chaseDelay;
+                    playerChasingId = targetPlayer.playerClientId;
+                    StopSearch(currentSearch);
+                    currentSearch.inProgress = false;
                     SwitchToBehaviourState(1);
                     
                 }
@@ -220,12 +225,14 @@ public class SCP106EnemyAI: EnemyAI
             //CHASING PLAYER
             case 1:
             {
+                targetPlayer = GetChasingPlayer();
                 Debug.Log($"PLAYER TARGET {targetPlayer != null}");
                 if (chaseTimer <= 0f)
                 {
                     TargetClosestPlayer(requireLineOfSight: true, viewWidth: visionWidth);
                     if (targetPlayer != null)
                     {
+                        playerChasingId = targetPlayer.playerClientId;
                         chaseTimer += 1f;
                     }
                     else
@@ -295,6 +302,20 @@ public class SCP106EnemyAI: EnemyAI
                 break;
             }
         }
+    }
+
+    private PlayerControllerB GetChasingPlayer()
+    {
+        PlayerControllerB playerControllerB = null;
+        StartOfRound.Instance.allPlayerScripts.ToList().ForEach(p =>
+        {
+            if (!p.isPlayerDead && p.playerClientId == playerChasingId)
+            {
+                playerControllerB = p;
+            }
+        });
+        
+        return playerControllerB;
     }
 
     private void SavePortalPosition(Vector3 pos)
