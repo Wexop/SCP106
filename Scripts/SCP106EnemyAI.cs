@@ -14,7 +14,15 @@ public class SCP106EnemyAI: EnemyAI
     private static readonly int OutOfPortal = Animator.StringToHash("OutOfPortal");
     private static readonly int Punch = Animator.StringToHash("Punch");
     private static readonly int Run = Animator.StringToHash("Run");
-    public GameObject PortalObject;
+
+    private static readonly int Spawn = Animator.StringToHash("Spawn");
+    //public GameObject PortalObject;
+   
+    public ParticleSystem SendToPocketParticles;
+
+    public List<AudioClip> walkSounds;
+    public AudioClip seePlayerSound;
+    
 
     private float visionWidth = 60f;
     private float baseSpeed = 5f;
@@ -28,7 +36,7 @@ public class SCP106EnemyAI: EnemyAI
     public LayerMask layerRoom;
     
     private float createPortalDelay = 30f;
-    private float createPortalTimer = 5f;
+    private float createPortalTimer = 10f;
 
     private List<Vector3> savedWallPosition = new List<Vector3>();
     private float saveWallPosTimer = 0f;
@@ -49,8 +57,13 @@ public class SCP106EnemyAI: EnemyAI
     private List<ulong> playersIdsInDimension = new List<ulong>();
     private float goToPocketDimensionTimer = 30f;
     private float goToPocketDimensionDelay = 30f;
+    
+    private float walkSoundTimer = 0f;
+    private float walkSoundDelayWalk = 0.9f;
+    private float walkSoundDelayRun = 0.5f;
 
     private Vector3 spawnPos;
+    private Vector3 portalGoingToPos;
     public override void Start()
     {
 
@@ -74,19 +87,28 @@ public class SCP106EnemyAI: EnemyAI
         
         if (lastBehaviorState != currentBehaviourStateIndex)
         {
+            Debug.Log($"New behavior state : {currentBehaviourStateIndex} last : {lastBehaviorState}");
             lastBehaviorState = currentBehaviourStateIndex;
             AllClientOnSwitchBehaviorState();
 
         }
-        
+        walkSoundTimer -= Time.deltaTime;
+
         hitTimer -= Time.deltaTime;
         spawningTimer -= Time.deltaTime;
+        
+        //WALKSOUNDS
+        if ( spawningTimer < 0 && walkSoundTimer <= 0f)
+        {
+            var randomSound = walkSounds[Random.Range(0, walkSounds.Count)];
+            creatureSFX.PlayOneShot(randomSound);
+            walkSoundTimer = currentBehaviourStateIndex == 1 ? walkSoundDelayRun : walkSoundDelayWalk;
 
-        if(currentBehaviourStateIndex == 1) chaseTimer -= Time.deltaTime;
+        }
         
         if(!IsServer) return;
 
-        if (goToPocketDimensionTimer <= 0 && currentBehaviourStateIndex != 2)
+        if (goToPocketDimensionTimer <= 0 && currentBehaviourStateIndex != 2 && SCP106Plugin.instance.actualDimensionObjectManager != null)
         {
             StopSearch(currentSearch);
             agent.enabled = false;
@@ -96,12 +118,15 @@ public class SCP106EnemyAI: EnemyAI
             SwitchToBehaviourState(2);
         }
         
-        //createPortalTimer -= Time.deltaTime;
+        createPortalTimer -= Time.deltaTime;
         saveWallPosTimer -= Time.deltaTime;
         aiInterval -= Time.deltaTime;
+
+        if(currentBehaviourStateIndex == 1) chaseTimer -= Time.deltaTime;
+        
         if(GetPlayerCountInDimension() > 0) goToPocketDimensionTimer -= Time.deltaTime;
         
-        if (aiInterval <= 0 && IsOwner)
+        if (aiInterval <= 0 && IsServer)
         {
             aiInterval = AIIntervalTime;
             DoAIInterval();
@@ -120,7 +145,9 @@ public class SCP106EnemyAI: EnemyAI
     {
         base.DoAIInterval();
         
-        if(spawningTimer > 0 || stunNormalizedTimer > 0) return;
+        if(spawningTimer > 0 || stunNormalizedTimer > 0 || !IsServer) return;
+        
+        Debug.Log($"CHASE TIMER : {chaseTimer}");
 
         switch (currentBehaviourStateIndex)
         {
@@ -132,17 +159,26 @@ public class SCP106EnemyAI: EnemyAI
     
                 if (targetPlayer == null)
                 {
-                    if (createPortalTimer <= 0 && false)
+                    if (createPortalTimer <= 0 )
                     {
                         if(alreadyCreatedPortal) break;
+
+                        //debug case
+                        if (createPortalTimer <= -15)
+                        {
+                            createPortalTimer = createPortalDelay;
+                            alreadyCreatedPortal = false;
+                            break;
+                        }
                         
-                        Debug.Log($"Create Portal {createPortalTimer} {isGoingToPortal} {savedWallPosition.Count}");
+                        Debug.Log($"Go through wall {createPortalTimer} {isGoingToPortal} {savedWallPosition.Count}");
                         if (!isGoingToPortal && savedWallPosition.Count > 1)
                         {
                             var pos = savedWallPosition[Random.Range(0, savedWallPosition.Count)];
                             StopSearch(currentSearch);
 
                             SetDestinationToPosition(pos);
+                            portalGoingToPos = pos;
                             
                             isGoingToPortal = true;
                         
@@ -153,6 +189,8 @@ public class SCP106EnemyAI: EnemyAI
                         {
                             Debug.Log("Going Portal");
                             
+                            transform.LookAt(portalGoingToPos);
+                            transform.eulerAngles = new Vector3(0, transform.eulerAngles.y, 0);
                             var pos = savedWallPosition[Random.Range(0, savedWallPosition.Count)];
                
                             GoToPortalServerRpc(transform.position, pos);
@@ -174,6 +212,7 @@ public class SCP106EnemyAI: EnemyAI
                 {
                     chaseTimer = chaseDelay;
                     SwitchToBehaviourState(1);
+                    
                 }
                 break;
                 
@@ -181,6 +220,7 @@ public class SCP106EnemyAI: EnemyAI
             //CHASING PLAYER
             case 1:
             {
+                Debug.Log($"PLAYER TARGET {targetPlayer != null}");
                 if (chaseTimer <= 0f)
                 {
                     TargetClosestPlayer(requireLineOfSight: true, viewWidth: visionWidth);
@@ -190,15 +230,17 @@ public class SCP106EnemyAI: EnemyAI
                     }
                     else
                     {
+                        Debug.Log("SWITCH TO 0 IN IA");
+                        chaseTimer = chaseDelay;
                         SwitchToBehaviourState(0);
                     }
                     
                 }
-                else if (targetPlayer != null && PlayerIsTargetable(targetPlayer))
+                if (targetPlayer != null  && PlayerIsTargetable(targetPlayer))
                 {
                     SetMovingTowardsTargetPlayer(targetPlayer);
                 }
-   
+                
                 break;
                 
             }
@@ -206,6 +248,12 @@ public class SCP106EnemyAI: EnemyAI
             case 2:
             {
 
+                if (GetPlayerCountInDimension() <= 0)
+                {
+                    TpToRandomWallPoint();
+
+                }
+                
                 var player = GetClosestPlayer();
                 if (PlayerIsTargetable(player))
                 {
@@ -231,12 +279,17 @@ public class SCP106EnemyAI: EnemyAI
             }
             case 1:
             {
+                creatureVoice.PlayOneShot(seePlayerSound);
                 agent.speed = runSpeed;
                 creatureAnimator.SetBool(Run, true);
+                
+                createPortalTimer = createPortalDelay;
+                alreadyCreatedPortal = false;
                 break;
             }
             case 2:
             {
+                creatureVoice.PlayOneShot(seePlayerSound);
                 agent.speed = inDimensionSpeed;
                 creatureAnimator.SetBool(Run, true);
                 break;
@@ -280,19 +333,12 @@ public class SCP106EnemyAI: EnemyAI
     [ClientRpc]
     public void CreatePortalClientRpc(Vector3 position, Vector3 connectedPosition, bool goToPos = false)
     {
-        
-        if (PortalObject != null)
+        if (goToPos)
         {
-            var portal = Instantiate(PortalObject, position, Quaternion.identity);
-            portal.transform.LookAt(position);
-            portal.transform.eulerAngles = new Vector3(0f, portal.transform.eulerAngles.y, 0f);
-            portal.GetComponent<SCP106Portal>().connectedPos = connectedPosition;
-            if (goToPos)
-            {
-                agent.SetDestination(position);
-                createPortalTimer = createPortalDelay;
-            }
+            agent.SetDestination(position);
+            createPortalTimer = createPortalDelay;
         }
+
     }
 
     [ServerRpc]
@@ -311,8 +357,6 @@ public class SCP106EnemyAI: EnemyAI
     {
         transform.position = pos;
         creatureAnimator.SetTrigger(GoToPortal);
-        CreatePortalServerRpc(pos, connectedPosition: nextPos);
-        CreatePortalServerRpc(nextPos, connectedPosition: pos);
         
         yield return new WaitForSeconds(2);
         
@@ -329,16 +373,25 @@ public class SCP106EnemyAI: EnemyAI
         
     }
 
-    [ServerRpc(RequireOwnership = false)]
-    void PlayerKilledInDimensionServerRpc(ulong id)
+    private void TpToRandomWallPoint()
     {
         goToPocketDimensionTimer = goToPocketDimensionDelay;
         agent.enabled = false;
         transform.position = savedWallPosition.Count > 0 ? savedWallPosition[Random.Range(0, savedWallPosition.Count)] : spawnPos;
         agent.enabled = true;
         spawningTimer = 2f;
+        creatureAnimator.SetTrigger(Spawn);
+        Debug.Log("SWITCH TO 0 IN TP RANDOM");
         SwitchToBehaviourState(0);
+
+    }
+
+    [ServerRpc(RequireOwnership = false)]
+    void PlayerKilledInDimensionServerRpc(ulong id)
+    {
+        TpToRandomWallPoint();
         PlayerKilledInDimensionClientRpc(id);
+
     }
     
     [ClientRpc]
@@ -358,13 +411,15 @@ public class SCP106EnemyAI: EnemyAI
     [ServerRpc(RequireOwnership = false)]
     void PlayerInDimensionServerRpc(ulong id)
     {
-
+        goToPocketDimensionTimer = goToPocketDimensionDelay;
         PlayerInDimensionClientRpc(id);
     }
     [ClientRpc]
     void PlayerInDimensionClientRpc(ulong id)
     {
         playersIdsInDimension.Add(id);
+        SendToPocketParticles.Clear();
+        SendToPocketParticles.Play();
     }
 
     public override void OnCollideWithPlayer(Collider other)
