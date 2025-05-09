@@ -31,6 +31,7 @@ namespace SCP106
         
         public ConfigEntry<string> spawnMoonRarity;
         public ConfigEntry<float> dimensionPosY;
+        public ConfigEntry<bool> debug;
 
         void Awake()
         {
@@ -62,13 +63,16 @@ namespace SCP106
             Utilities.FixMixerGroups(dimension);
         }
         
-        public void InstantiateDimension()
+        public void InstantiateDimension(SCP106EnemyAI enemyAI)
         {
-            if (actualDimensionObjectInstantiated == null)
+            if (actualDimensionObjectInstantiated == null || enemyAI != actualDimensionObjectManager._scp106EnemyAI)
             {
                 DestroyDimension();
                 actualDimensionObjectInstantiated = Instantiate(dimensionObject, Vector3.up * -dimensionPosY.Value, Quaternion.identity);
                 actualDimensionObjectManager = actualDimensionObjectInstantiated.GetComponent<SCP106DimensionManager>();
+                actualDimensionObjectManager._scp106EnemyAI = enemyAI;
+
+                if(enemyAI.IsServer) StartCoroutine(enemyAI.AfterCreatedDimension());
             }
 
         }
@@ -104,7 +108,10 @@ namespace SCP106
             dimensionPosY = Config.Bind("Pocket Dimension", "dimensionPosY", 550f,
                 "Dimension Y position. No need to restart the game !");
             CreateFloatConfig(dimensionPosY, 0f, 3000f);
- 
+            
+            //DEV
+            debug = Config.Bind("Dev", "Debug", false, "Enable debug logs");
+            CreateBoolConfig(debug);
         }
         
         void RegisterMonster(AssetBundle bundle)
@@ -128,6 +135,10 @@ namespace SCP106
             
             
             RegisterUtil.RegisterEnemyWithConfig(spawnMoonRarity.Value, creature,terminalNodeBigEyes , terminalKeywordBigEyes, creature.PowerLevel, creature.MaxCount);
+
+            GameObject trap = bundle.LoadAsset<GameObject>("Assets/LethalCompany/Mods/SCP106/SCPTrap.prefab");
+            Logger.LogInfo($"{trap.name} prefab");
+            NetworkPrefabs.RegisterNetworkPrefab(trap);
 
         }
         

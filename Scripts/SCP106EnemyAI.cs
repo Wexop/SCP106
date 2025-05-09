@@ -94,7 +94,7 @@ public class SCP106EnemyAI: EnemyAI
         
         if (lastBehaviorState != currentBehaviourStateIndex)
         {
-            Debug.Log($"New behavior state : {currentBehaviourStateIndex} last : {lastBehaviorState}");
+            if(SCP106Plugin.instance.debug.Value) Debug.Log($"New behavior state : {currentBehaviourStateIndex} last : {lastBehaviorState}");
             lastBehaviorState = currentBehaviourStateIndex;
             AllClientOnSwitchBehaviorState();
 
@@ -150,12 +150,15 @@ public class SCP106EnemyAI: EnemyAI
 
         if (createTrapTimer <= 0 && Physics.Raycast(eye.position, Vector3.down, out RaycastHit hitGround, 3 ,layerRoom) && currentBehaviourStateIndex != 2)
         {
-            Debug.Log($"Create trap");
+            if(SCP106Plugin.instance.debug.Value) Debug.Log($"Create trap");
 
             createTrapTimer = createTrapDelay;
             var trap = Instantiate(TrapObject, hitGround.point + Vector3.up * 0.2f , Quaternion.identity);
             SCP106Trap scp106Trap = trap.GetComponent<SCP106Trap>();
             scp106Trap._scp106EnemyAI = this;
+            trap.GetComponent<NetworkObject>().Spawn(true);
+            scp106Trap.SetEnemyAIReferenceServerRpc(new NetworkObjectReference(NetworkObject));
+
         }
     }
 
@@ -187,7 +190,7 @@ public class SCP106EnemyAI: EnemyAI
                             break;
                         }
                         
-                        Debug.Log($"Go through wall {createPortalTimer} {isGoingToPortal} {savedWallPosition.Count}");
+                        if(SCP106Plugin.instance.debug.Value) Debug.Log($"Go through wall {createPortalTimer} {isGoingToPortal} {savedWallPosition.Count}");
                         if (!isGoingToPortal && savedWallPosition.Count > 1)
                         {
                             var pos = savedWallPosition[Random.Range(0, savedWallPosition.Count)];
@@ -203,7 +206,7 @@ public class SCP106EnemyAI: EnemyAI
 
                         if (isGoingToPortal && agent.remainingDistance <= agent.stoppingDistance)
                         {
-                            Debug.Log("Going Portal");
+                            if(SCP106Plugin.instance.debug.Value) Debug.Log("Going Portal");
                             
                             transform.LookAt(portalGoingToPos);
                             transform.eulerAngles = new Vector3(0, transform.eulerAngles.y, 0);
@@ -419,6 +422,26 @@ public class SCP106EnemyAI: EnemyAI
     }
 
     [ServerRpc(RequireOwnership = false)]
+    public void PlayerEscapedDimensionServerRpc(ulong id)
+    {
+        SetRandomGateEscapeServerRpc();
+        PlayerEscapedDimensionClientRpc(id);
+    }
+    
+    [ClientRpc]
+    public void PlayerEscapedDimensionClientRpc(ulong id)
+    {
+        playersIdsInDimension.Remove(id);
+        StartOfRound.Instance.allPlayerScripts.ToList().ForEach(p =>
+        {
+            if (p.playerClientId == id && !p.isPlayerDead)
+            {
+                p.transform.position = savedWallPosition.Count > 0 ? savedWallPosition[Random.Range(0, savedWallPosition.Count)] : spawnPos;
+            }
+        });
+    }
+
+    [ServerRpc(RequireOwnership = false)]
     void PlayerKilledInDimensionServerRpc(ulong id)
     {
         TpToRandomWallPoint();
@@ -458,6 +481,49 @@ public class SCP106EnemyAI: EnemyAI
         }
     }
 
+    [ServerRpc(RequireOwnership = false)]
+    public void SetRandomGateEscapeServerRpc()
+    {
+        int id = SCP106Plugin.instance.actualDimensionObjectManager.gates[Random.Range(0, SCP106Plugin.instance.actualDimensionObjectManager.gates.Count)].id;
+        SetRandomGateEscapeClientRpc(id);
+    }
+    
+
+    [ClientRpc]
+    public void SetRandomGateEscapeClientRpc(int id)
+    {
+        if(SCP106Plugin.instance.debug.Value) Debug.Log($"GATE TO ESCAPE ID IS {id}");
+        SCP106Plugin.instance.actualDimensionObjectManager.SetGateToEscape(id);
+    }
+
+    [ServerRpc(RequireOwnership = false)]
+    public void OnPlayerOpenDoorServerRpc(int doorId, ulong playerId)
+    {
+        OnPlayerOpenDoorClientRpc(doorId, playerId);
+    }
+    
+    [ClientRpc]
+    public void OnPlayerOpenDoorClientRpc(int doorId, ulong playerId)
+    {
+        PlayerControllerB player = null;
+        StartOfRound.Instance.allPlayerScripts.ToList().ForEach(p =>
+        {
+            if (p.playerClientId == playerId && !p.isPlayerDead)
+            {
+                player = p;
+            }
+        });
+        
+        SCP106Plugin.instance.actualDimensionObjectManager.gates.ForEach(g =>
+        {
+            if (g.id == doorId)
+            {
+                g.DoorAnimation(player);
+            }
+        });
+    }
+    
+
     public override void OnCollideWithPlayer(Collider other)
     {
         if(spawningTimer > 0) return;
@@ -479,7 +545,7 @@ public class SCP106EnemyAI: EnemyAI
             }
             else
             {
-                SCP106Plugin.instance.InstantiateDimension();
+                SCP106Plugin.instance.InstantiateDimension(this);
                 player.transform.position = SCP106Plugin.instance.actualDimensionObjectManager.spawnPosition.position;
                 PlayerInDimensionServerRpc(player.playerClientId);
                 
@@ -487,5 +553,15 @@ public class SCP106EnemyAI: EnemyAI
         }
     }
 
+    public IEnumerator AfterCreatedDimension()
+    {
+        yield return new WaitForSecondsRealtime(1f);
+        SetRandomGateEscapeServerRpc();
+    }
 
+    public override void OnDestroy()
+    {
+        base.OnDestroy();
+        SCP106Plugin.instance.DestroyDimension();
+    }
 }
