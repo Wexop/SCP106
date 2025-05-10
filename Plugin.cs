@@ -66,6 +66,7 @@ namespace SCP106
         
         public void InstantiateDimension(SCP106EnemyAI enemyAI)
         {
+            if(enemyAI == null) return;
             if (actualDimensionObjectInstantiated == null || enemyAI != actualDimensionObjectManager._scp106EnemyAI)
             {
                 DestroyDimension();
@@ -73,7 +74,7 @@ namespace SCP106
                 actualDimensionObjectManager = actualDimensionObjectInstantiated.GetComponent<SCP106DimensionManager>();
                 actualDimensionObjectManager._scp106EnemyAI = enemyAI;
 
-                if(enemyAI.IsServer) StartCoroutine(enemyAI.AfterCreatedDimension());
+                if (enemyAI.IsServer) enemyAI.ServerRunAfterCreatedDimension();
             }
 
         }

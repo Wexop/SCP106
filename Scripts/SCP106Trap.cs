@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections;
+﻿using System.Collections;
 using GameNetcodeStuff;
 using Unity.Netcode;
 using UnityEngine;
@@ -86,7 +85,7 @@ public class SCP106Trap: NetworkBehaviour
     
     private void OnTriggerEnter(Collider other)
     {
-        if(_scp106EnemyAI == null) return;
+        if(!_scp106EnemyAI) return;
         if (other.CompareTag("Player"))
         {
             PlayerControllerB player = other.GetComponent<PlayerControllerB>();

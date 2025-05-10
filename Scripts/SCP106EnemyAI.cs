@@ -596,6 +596,11 @@ public class SCP106EnemyAI: EnemyAI
         }
     }
 
+    public void ServerRunAfterCreatedDimension()
+    {
+        StartCoroutine(AfterCreatedDimension());
+    }
+
     public IEnumerator AfterCreatedDimension()
     {
         yield return new WaitForSecondsRealtime(1f);
