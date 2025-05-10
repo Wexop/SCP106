@@ -11,12 +11,12 @@ public class SCP106DimensionManager: NetworkBehaviour
 
     public List<SCP106DimensionGate> gates;
 
-    public void SetGateToEscape(int id)
+    public void SetGateToEscape(List<int> ids)
     {
         
         gates.ForEach(g =>
         {
-            g.EscapeEnabled = g.id == id;
+            g.EscapeEnabled = ids.Contains(g.id);
         });
     }
 

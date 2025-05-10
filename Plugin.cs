@@ -30,6 +30,8 @@ namespace SCP106
         
         public ConfigEntry<string> spawnMoonRarity;
         public ConfigEntry<float> dimensionPosY;
+        public ConfigEntry<float> trapLifeTime;
+        public ConfigEntry<int> numberOfGoodDoor;
         public ConfigEntry<bool> debug;
 
         void Awake()
@@ -104,9 +106,19 @@ namespace SCP106
                 "Chance for SCP 106 to spawn for any moon, example => assurance:100,offense:50 . You need to restart the game.");
             CreateStringConfig(spawnMoonRarity, true);
             
+            trapLifeTime = Config.Bind("General", "trapLifeTime", 60f,
+                "Trap life duration (seconds). No need to restart the game !");
+            CreateFloatConfig(trapLifeTime, 0f, 200f);
+            
+            numberOfGoodDoor = Config.Bind("Pocket Dimension", "numberOfGoodDoor", 1,
+                "Number of door that make you escape in the pocket dimension. No need to restart the game !");
+            CreateIntConfig(numberOfGoodDoor, 1, 4);
+            
             dimensionPosY = Config.Bind("Pocket Dimension", "dimensionPosY", 550f,
                 "Dimension Y position. No need to restart the game !");
             CreateFloatConfig(dimensionPosY, 0f, 3000f);
+            
+
             
             //DEV
             debug = Config.Bind("Dev", "Debug", false, "Enable debug logs");

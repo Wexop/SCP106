@@ -40,7 +40,7 @@ public class SCP106DimensionGate : MonoBehaviour
 
     private IEnumerator KillPlayerAnimation(PlayerControllerB player)
     {
-        yield return new WaitForSeconds(1f);
+        yield return new WaitForSeconds(1.25f);
         player.KillPlayer(Vector3.zero, causeOfDeath: CauseOfDeath.Crushing);
         player.disableMoveInput = false;
 

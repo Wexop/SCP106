@@ -32,8 +32,6 @@ public class SCP106EnemyAI: EnemyAI
     private float inDimensionSpeed = 9f;
 
     private float spawningTimer = 7f;
-
-    private float wallDistanceToSpawnPortal = 10f;
     
     public LayerMask layerRoom;
     
@@ -193,7 +191,7 @@ public class SCP106EnemyAI: EnemyAI
                         if(SCP106Plugin.instance.debug.Value) Debug.Log($"Go through wall {createPortalTimer} {isGoingToPortal} {savedWallPosition.Count}");
                         if (!isGoingToPortal && savedWallPosition.Count > 1)
                         {
-                            var pos = savedWallPosition[Random.Range(0, savedWallPosition.Count)];
+                            var pos = GetClosestWallPosition();
                             StopSearch(currentSearch);
 
                             SetDestinationToPosition(pos);
@@ -319,6 +317,20 @@ public class SCP106EnemyAI: EnemyAI
         }
     }
 
+    private Vector3 GetClosestWallPosition()
+    {
+        var closestWallPosition = savedWallPosition[0];
+        savedWallPosition.ForEach(wall =>
+        {
+            if (Vector3.Distance(wall, transform.position) < Vector3.Distance(transform.position, closestWallPosition))
+            {
+                closestWallPosition = wall;
+            }
+        });
+        
+        return closestWallPosition;
+    }
+
     private PlayerControllerB GetChasingPlayer()
     {
         PlayerControllerB playerControllerB = null;
@@ -424,7 +436,6 @@ public class SCP106EnemyAI: EnemyAI
     [ServerRpc(RequireOwnership = false)]
     public void PlayerEscapedDimensionServerRpc(ulong id)
     {
-        SetRandomGateEscapeServerRpc();
         PlayerEscapedDimensionClientRpc(id);
     }
     
@@ -481,19 +492,51 @@ public class SCP106EnemyAI: EnemyAI
         }
     }
 
+    private int GetRandomGateId()
+    {
+        return SCP106Plugin.instance.actualDimensionObjectManager.gates[Random.Range(0, SCP106Plugin.instance.actualDimensionObjectManager.gates.Count)].id;
+
+    }
+
     [ServerRpc(RequireOwnership = false)]
     public void SetRandomGateEscapeServerRpc()
     {
-        int id = SCP106Plugin.instance.actualDimensionObjectManager.gates[Random.Range(0, SCP106Plugin.instance.actualDimensionObjectManager.gates.Count)].id;
-        SetRandomGateEscapeClientRpc(id);
+        List<int> ids = new List<int>();
+
+        while (ids.Count < SCP106Plugin.instance.numberOfGoodDoor.Value)
+        {
+            int idToAdd = GetRandomGateId();
+            if(SCP106Plugin.instance.debug.Value) Debug.Log($"ORIGINAL GATE ID TO ADD {idToAdd}");
+
+            while (ids.Contains(idToAdd) || idToAdd == null)
+            {
+                if(SCP106Plugin.instance.debug.Value) Debug.Log($"GATE ID TO ADD {idToAdd}");
+                idToAdd = GetRandomGateId();
+            }
+            ids.Add(idToAdd);
+        }
+        
+        SetRandomGateEscapeClientRpc(ids.ToArray());
     }
     
 
     [ClientRpc]
-    public void SetRandomGateEscapeClientRpc(int id)
+    public void SetRandomGateEscapeClientRpc(int[] ids)
     {
-        if(SCP106Plugin.instance.debug.Value) Debug.Log($"GATE TO ESCAPE ID IS {id}");
-        SCP106Plugin.instance.actualDimensionObjectManager.SetGateToEscape(id);
+        if (SCP106Plugin.instance.debug.Value)
+        {
+            ids.ToList().ForEach(id => Debug.Log($"GOOD GATE ID : {id}"));
+        }
+
+        StartCoroutine(SetGateEscape(ids.ToList()));
+    }
+
+    private IEnumerator SetGateEscape(List<int> ids)
+    {
+
+        yield return new WaitUntil(() => SCP106Plugin.instance.actualDimensionObjectManager != null);
+        SCP106Plugin.instance.actualDimensionObjectManager.SetGateToEscape(ids);
+
     }
 
     [ServerRpc(RequireOwnership = false)]

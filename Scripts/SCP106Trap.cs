@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using GameNetcodeStuff;
 using Unity.Netcode;
 using UnityEngine;
@@ -7,10 +8,47 @@ namespace SCP106.Scripts;
 
 public class SCP106Trap: NetworkBehaviour
 {
+    private static readonly int End = Animator.StringToHash("end");
     public SCP106EnemyAI _scp106EnemyAI;
     public ParticleSystem SendToPocketParticles;
+    public Animator Animator;
     
     private NetworkVariable<NetworkObjectReference> enemyAIRef = new NetworkVariable<NetworkObjectReference>();
+
+    private float lifeTimer = 60f;
+
+    private void Start()
+    {
+        if (IsServer) SetLifeTimeServerRpc(SCP106Plugin.instance.trapLifeTime.Value);
+    }
+
+    private void Update()
+    {
+        lifeTimer -= Time.deltaTime;
+        if (lifeTimer < 0f)
+        {
+            Animator.SetTrigger(End);
+            if(IsServer) StartCoroutine(OnLifeTimeEnd());
+        }
+    }
+
+    [ServerRpc]
+    private void SetLifeTimeServerRpc(float value)
+    {
+        SetLifeTimeClientRpc(value);
+    }
+    
+    [ClientRpc]
+    private void SetLifeTimeClientRpc(float value)
+    {
+        lifeTimer = value;
+    }
+
+    private IEnumerator OnLifeTimeEnd()
+    {
+        yield return new WaitForSeconds(1f);
+        NetworkObject.Despawn();
+    }
 
 
     public override void OnNetworkSpawn()
@@ -22,7 +60,7 @@ public class SCP106Trap: NetworkBehaviour
             _scp106EnemyAI = enemyAIObject.GetComponent<SCP106EnemyAI>();
         }
         
-                enemyAIRef.OnValueChanged += OnEnemyAIReferenceChanged;
+        enemyAIRef.OnValueChanged += OnEnemyAIReferenceChanged;
 
 
     }
@@ -48,6 +86,7 @@ public class SCP106Trap: NetworkBehaviour
     
     private void OnTriggerEnter(Collider other)
     {
+        if(_scp106EnemyAI == null) return;
         if (other.CompareTag("Player"))
         {
             PlayerControllerB player = other.GetComponent<PlayerControllerB>();
