@@ -50,6 +50,11 @@ There is another way to escape the pocket dimension, there is 4 doors that you c
 
 </details>
 
+## Credits
+
+- [JoeJoe](https://discord.com/users/167920913289838592) - Project Owner (his discord)
+- [Wexop](https://thunderstore.io/c/lethal-company/p/Wexop/) - Modder
+
 ## Assets Credits
 
 - "Blob 01" (https://skfb.ly/oJzKY) by gavinpgamer1 is licensed under Creative Commons Attribution (http://creativecommons.org/licenses/by/4.0/).
