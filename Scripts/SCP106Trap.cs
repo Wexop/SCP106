@@ -5,7 +5,7 @@ using UnityEngine;
 
 namespace SCP106.Scripts;
 
-public class SCP106Trap: NetworkBehaviour
+public class SCP106Trap: NetworkBehaviour, IHittable 
 {
     private static readonly int End = Animator.StringToHash("end");
     public SCP106EnemyAI _scp106EnemyAI;
@@ -31,7 +31,7 @@ public class SCP106Trap: NetworkBehaviour
         }
     }
 
-    [ServerRpc]
+    [ServerRpc(RequireOwnership = false)]
     private void SetLifeTimeServerRpc(float value)
     {
         SetLifeTimeClientRpc(value);
@@ -110,5 +110,13 @@ public class SCP106Trap: NetworkBehaviour
     {
         SendToPocketParticles.Clear();
         SendToPocketParticles.Play();
+    }
+
+    public bool Hit(int force, Vector3 hitDirection, PlayerControllerB playerWhoHit = null, bool playHitSFX = false,
+        int hitID = -1)
+    {
+        SetLifeTimeServerRpc(0);
+
+        return true;
     }
 }

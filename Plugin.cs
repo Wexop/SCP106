@@ -20,7 +20,7 @@ namespace SCP106
 
         const string GUID = "project_scp.scp_106";
         const string NAME = "SCP_106";
-        const string VERSION = "1.0.0";
+        const string VERSION = "1.0.1";
 
         public static SCP106Plugin instance;
 
@@ -130,6 +130,8 @@ namespace SCP106
         {
             //creature
             EnemyType creature = bundle.LoadAsset<EnemyType>("Assets/LethalCompany/Mods/SCP106/SCP106.asset");
+            TerminalNode terminalNode = bundle.LoadAsset<TerminalNode>("Assets/LethalCompany/Mods/SCP106/SCP106TerminalNode.asset");
+            TerminalKeyword terminalKeyword = bundle.LoadAsset<TerminalKeyword>("Assets/LethalCompany/Mods/SCP106/SCP106TerminalKeyword.asset");
 
             creature.MaxCount = 1;
             
@@ -137,16 +139,9 @@ namespace SCP106
             Logger.LogInfo($"{creature.enemyPrefab} prefab");
             NetworkPrefabs.RegisterNetworkPrefab(creature.enemyPrefab);
             Utilities.FixMixerGroups(creature.enemyPrefab);
-
-            TerminalNode terminalNodeBigEyes = new TerminalNode();
-            terminalNodeBigEyes.creatureName = "SCP106";
-            terminalNodeBigEyes.displayText = "";
-
-            TerminalKeyword terminalKeywordBigEyes = new TerminalKeyword();
-            terminalKeywordBigEyes.word = "SCP106";
             
             
-            RegisterUtil.RegisterEnemyWithConfig(spawnMoonRarity.Value, creature,terminalNodeBigEyes , terminalKeywordBigEyes, creature.PowerLevel, creature.MaxCount);
+            RegisterUtil.RegisterEnemyWithConfig(spawnMoonRarity.Value, creature,terminalNode , terminalKeyword, creature.PowerLevel, creature.MaxCount);
 
             GameObject trap = bundle.LoadAsset<GameObject>("Assets/LethalCompany/Mods/SCP106/SCPTrap.prefab");
             Logger.LogInfo($"{trap.name} prefab");
