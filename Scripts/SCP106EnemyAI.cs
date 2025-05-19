@@ -484,6 +484,7 @@ public class SCP106EnemyAI: EnemyAI
     [ClientRpc]
     void PlayerInDimensionClientRpc(ulong id, bool withParticules = true)
     {
+        SCP106Plugin.instance.InstantiateDimension(this);
         playersIdsInDimension.Add(id);
         if (withParticules)
         {
