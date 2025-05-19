@@ -1,5 +1,9 @@
 # Changelog
 
+### v1.0.2
+
+- Fix an issue where client enter first in the dimension and make the dimension not spawn on others players
+
 ### v1.0.1
 
 - You can now hit traps to make it disappear
