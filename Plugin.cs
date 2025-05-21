@@ -20,7 +20,7 @@ namespace SCP106
 
         const string GUID = "project_scp.scp_106";
         const string NAME = "SCP_106";
-        const string VERSION = "1.0.2";
+        const string VERSION = "1.0.3";
 
         public static SCP106Plugin instance;
 
@@ -28,9 +28,15 @@ namespace SCP106
         public GameObject actualDimensionObjectInstantiated;
         public SCP106DimensionManager actualDimensionObjectManager;
         
+        public ConfigEntry<float> monsterWalkSpeed;
+        public ConfigEntry<float> monsterChaseSpeed;
+        public ConfigEntry<float> monsterInDimensionSpeed;
+
+        
         public ConfigEntry<string> spawnMoonRarity;
         public ConfigEntry<float> dimensionPosY;
         public ConfigEntry<float> trapLifeTime;
+        public ConfigEntry<bool> trapInstantTeleport;
         public ConfigEntry<int> numberOfGoodDoor;
         public ConfigEntry<bool> debug;
 
@@ -102,6 +108,18 @@ namespace SCP106
             
             //GENERAL
             
+            monsterWalkSpeed = Config.Bind("General", "WalkSpeed", 5f,
+                "SCP 106 walk speed. You don't need to restart the game :)");
+            CreateFloatConfig(monsterWalkSpeed,0 , 30);
+            
+            monsterChaseSpeed = Config.Bind("General", "ChaseSpeed", 7f,
+                "SCP 106 chase speed. You don't need to restart the game :)");
+            CreateFloatConfig(monsterChaseSpeed,0 , 30);
+            
+            monsterInDimensionSpeed = Config.Bind("General", "InDimensionSpeed", 9f,
+                "SCP 106 in dimension speed. You don't need to restart the game :)");
+            CreateFloatConfig(monsterInDimensionSpeed,0 , 30);
+            
             spawnMoonRarity = Config.Bind("General", "SpawnRarity", 
                 "Modded:40,ExperimentationLevel:20,AssuranceLevel:20,VowLevel:20,OffenseLevel:25,MarchLevel:25,RendLevel:30,DineLevel:30,TitanLevel:50,Adamance:50,Embrion:50,Artifice:55", 
                 "Chance for SCP 106 to spawn for any moon, example => assurance:100,offense:50 . You need to restart the game.");
@@ -110,6 +128,10 @@ namespace SCP106
             trapLifeTime = Config.Bind("General", "trapLifeTime", 60f,
                 "Trap life duration (seconds). No need to restart the game !");
             CreateFloatConfig(trapLifeTime, 0f, 200f);
+            
+            trapInstantTeleport = Config.Bind("General", "trapInstantTeleport", false,
+                "Enable traps to instant teleport players into pocket dimension. No need to restart the game !");
+            CreateBoolConfig(trapInstantTeleport);
             
             numberOfGoodDoor = Config.Bind("Pocket Dimension", "numberOfGoodDoor", 1,
                 "Number of door that make you escape in the pocket dimension. No need to restart the game !");

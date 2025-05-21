@@ -15,10 +15,16 @@ public class SCP106Trap: NetworkBehaviour, IHittable
     private NetworkVariable<NetworkObjectReference> enemyAIRef = new NetworkVariable<NetworkObjectReference>();
 
     private float lifeTimer = 60f;
+    
+    private bool instantTeleport = false;
 
     private void Start()
     {
-        if (IsServer) SetLifeTimeServerRpc(SCP106Plugin.instance.trapLifeTime.Value);
+        if (IsServer)
+        {
+            SetLifeTimeServerRpc(SCP106Plugin.instance.trapLifeTime.Value);
+            SetInstantTeleportServerRpc(SCP106Plugin.instance.trapInstantTeleport.Value);
+        }
     }
 
     private void Update()
@@ -41,6 +47,18 @@ public class SCP106Trap: NetworkBehaviour, IHittable
     private void SetLifeTimeClientRpc(float value)
     {
         lifeTimer = value;
+    }
+
+    [ServerRpc]
+    private void SetInstantTeleportServerRpc(bool val)
+    {
+        SetInstantTeleportClientRpc(val);
+    }
+
+    [ClientRpc]
+    private void SetInstantTeleportClientRpc(bool val)
+    {
+        instantTeleport = val;
     }
 
     private IEnumerator OnLifeTimeEnd()
@@ -91,9 +109,17 @@ public class SCP106Trap: NetworkBehaviour, IHittable
             PlayerControllerB player = other.GetComponent<PlayerControllerB>();
             if (player != null && !player.isPlayerDead && player.playerClientId == GameNetworkManager.Instance.localPlayerController.playerClientId)
             {
-                SCP106Plugin.instance.InstantiateDimension(_scp106EnemyAI);
-                OnPlayerCollideServerRpc(player.playerClientId);
-                player.transform.position = SCP106Plugin.instance.actualDimensionObjectManager.spawnPosition.position;
+                if (player.health < 40 || instantTeleport)
+                {
+                    SCP106Plugin.instance.InstantiateDimension(_scp106EnemyAI);
+                    OnPlayerCollideServerRpc(player.playerClientId);
+                    player.transform.position = SCP106Plugin.instance.actualDimensionObjectManager.spawnPosition.position;
+                }
+                else if(!instantTeleport)
+                {
+                    player.DamagePlayer(30);
+                    player.sprintMeter = 0;
+                }
             }
         }
     }

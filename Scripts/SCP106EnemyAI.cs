@@ -79,6 +79,23 @@ public class SCP106EnemyAI: EnemyAI
         agent.angularSpeed = 900f;
         
         spawnPos = transform.position;
+
+        if (IsServer) SetSpeedValuesServerRpc();
+    }
+
+    [ServerRpc]
+    void SetSpeedValuesServerRpc()
+    {
+        SetSpeedValuesClientRpc(SCP106Plugin.instance.monsterWalkSpeed.Value,
+            SCP106Plugin.instance.monsterChaseSpeed.Value, SCP106Plugin.instance.monsterInDimensionSpeed.Value);
+    }
+    
+    [ClientRpc]
+    void SetSpeedValuesClientRpc(float walkSpeed, float chaseSpeed, float dimensionSpeed)
+    {
+        baseSpeed = walkSpeed;
+        runSpeed = chaseSpeed;
+        inDimensionSpeed = dimensionSpeed;
     }
 
     public override void Update()
@@ -583,7 +600,7 @@ public class SCP106EnemyAI: EnemyAI
                 PlayerKilledInDimensionServerRpc(player.playerClientId);
             }
          
-            if (player.health >= 40)
+            if (player.health > 40)
             {
                 player.DamagePlayer(30, causeOfDeath: CauseOfDeath.Kicking);
             }

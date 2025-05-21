@@ -1,5 +1,10 @@
 # Changelog
 
+### v1.0.3
+
+- Add speed configs (Walk, Chase, In Dimension)
+- Trap now hit player and drain stamina when walked on. It Will teleport player if he is under 40hp 
+
 ### v1.0.2
 
 - Fix an issue where client enter first in the dimension and make the dimension not spawn on others players

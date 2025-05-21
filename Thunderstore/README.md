@@ -42,7 +42,7 @@ SCP-106 is capable of passing through solid matter, leaving behind a large patch
 
 Here is how SCP106 work !
 
-- First, he walks around and search for player. He will sometimes place a trap on the ground, if any player walk into this trap, he will be send to the pocket dimension. </br> He also sometimes walk trough a wall, and tp to a random other wall in the facility.
+- First, he walks around and search for player. He will sometimes place a trap on the ground, if any player walk into this trap, he will take damage, if player is under 40hp he will be send to the pocket dimension. </br> He also sometimes walk trough a wall, and tp to a random other wall in the facility.
 - If he see any player, he will scream and run towards him. If he hit the player, he will damage him until the player has less than 40hp. Under 40hp, the player will be sent to the pocket dimension.
 - If there is at least 1 player in the dimension for some time, SCP106 go to the pocket dimension and run very fast toward the closest player and one shot him. If there is any other players in the dimension, they are sent back into the facility.
 
