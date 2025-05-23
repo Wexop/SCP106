@@ -1,5 +1,9 @@
 # Changelog
 
+### v1.0.4
+
+- Fix sometimes escape dimension drop you out of the world
+
 ### v1.0.3
 
 - Add speed configs (Walk, Chase, In Dimension)

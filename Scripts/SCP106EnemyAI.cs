@@ -160,7 +160,7 @@ public class SCP106EnemyAI: EnemyAI
         if (saveWallPosTimer <= 0 && Physics.Raycast(eye.position, direction, out RaycastHit hitWall, 10 ,layerRoom) && currentBehaviourStateIndex != 2)
         {
             saveWallPosTimer = saveWallPosDelay;
-            SavePortalPosition(hitWall.point);
+            SavePortalPosition(hitWall.point - direction * 0.05f);
         }
 
         if (createTrapTimer <= 0 && Physics.Raycast(eye.position, Vector3.down, out RaycastHit hitGround, 3 ,layerRoom) && currentBehaviourStateIndex != 2)
