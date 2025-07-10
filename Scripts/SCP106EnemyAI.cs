@@ -612,6 +612,7 @@ public class SCP106EnemyAI: EnemyAI
             }
             else
             {
+                player.isUnderwater = false;
                 SCP106Plugin.instance.InstantiateDimension(this);
                 player.transform.position = SCP106Plugin.instance.actualDimensionObjectManager.spawnPosition.position;
                 SCP106Plugin.instance.actualDimensionObjectManager.OnPlayerEnter();
