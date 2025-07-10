@@ -59,4 +59,4 @@ There is another way to escape the pocket dimension, there is 4 doors that you c
 
 - "Blob 01" (https://skfb.ly/oJzKY) by gavinpgamer1 is licensed under Creative Commons Attribution (http://creativecommons.org/licenses/by/4.0/).
 - "106 Pocket Dimension SCP:CB" (https://skfb.ly/oQRIW) by ASP is licensed under Creative Commons Attribution (http://creativecommons.org/licenses/by/4.0/).
-- "SCP Unity 106 Rig" (https://skfb.ly/oZwUM) by NO DONT EAT ME CASEOH (Ferris wheel) is licensed under Creative Commons Attribution (http://creativecommons.org/licenses/by/4.0/).
+- "SCP UNITY | SCP-106" (https://skfb.ly/pyAJL) by ThatJamGuy is licensed under Creative Commons Attribution (http://creativecommons.org/licenses/by/4.0/).

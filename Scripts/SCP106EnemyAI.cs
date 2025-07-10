@@ -24,6 +24,8 @@ public class SCP106EnemyAI: EnemyAI
 
     public List<AudioClip> walkSounds;
     public AudioClip seePlayerSound;
+    public AudioClip killPlayerSound;
+    public AudioClip damagePlayerSound;
     
 
     private float visionWidth = 80f;
@@ -36,7 +38,7 @@ public class SCP106EnemyAI: EnemyAI
     public LayerMask layerRoom;
     
     private float createPortalDelay = 30f;
-    private float createPortalTimer = 10f;
+    private float createPortalTimer = 30f;
     
     private float createTrapDelay = 45f;
     private float createTrapTimer = 10f;
@@ -422,6 +424,7 @@ public class SCP106EnemyAI: EnemyAI
     {
         transform.position = pos;
         creatureAnimator.SetTrigger(GoToPortal);
+        creatureVoice.PlayOneShot(killPlayerSound);
         
         yield return new WaitForSeconds(2);
         
@@ -489,6 +492,7 @@ public class SCP106EnemyAI: EnemyAI
             }
         });
         playersIdsInDimension.Remove(id);
+        creatureVoice.PlayOneShot(killPlayerSound);
         
     }
 
@@ -589,10 +593,12 @@ public class SCP106EnemyAI: EnemyAI
     {
         if(spawningTimer > 0) return;
         creatureAnimator.SetTrigger(Punch);
+        
         var player = MeetsStandardPlayerCollisionConditions(other, false, true);
         targetPlayer = player;
         if (player != null && hitTimer <= 0)
         {
+            creatureVoice.PlayOneShot(damagePlayerSound);
             hitTimer = hitDelay;
             if (currentBehaviourStateIndex == 2)
             {
@@ -608,6 +614,7 @@ public class SCP106EnemyAI: EnemyAI
             {
                 SCP106Plugin.instance.InstantiateDimension(this);
                 player.transform.position = SCP106Plugin.instance.actualDimensionObjectManager.spawnPosition.position;
+                SCP106Plugin.instance.actualDimensionObjectManager.OnPlayerEnter();
                 PlayerInDimensionServerRpc(player.playerClientId);
                 
             }

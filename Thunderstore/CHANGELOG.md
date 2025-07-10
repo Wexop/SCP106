@@ -1,5 +1,10 @@
 # Changelog
 
+### v1.1.0
+
+- Update a lot of sounds effects
+- New model, with clean animations !
+
 ### v1.0.4
 
 - Fix sometimes escape dimension drop you out of the world

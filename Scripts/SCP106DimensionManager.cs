@@ -11,6 +11,9 @@ public class SCP106DimensionManager: NetworkBehaviour
 
     public List<SCP106DimensionGate> gates;
 
+    public AudioSource SFXAudio;
+    public AudioClip EnterSfx;
+
     public void SetGateToEscape(List<int> ids)
     {
         
@@ -18,6 +21,11 @@ public class SCP106DimensionManager: NetworkBehaviour
         {
             g.EscapeEnabled = ids.Contains(g.id);
         });
+    }
+
+    public void OnPlayerEnter()
+    {
+        SFXAudio.PlayOneShot(EnterSfx);
     }
 
 
