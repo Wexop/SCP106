@@ -1,5 +1,9 @@
 # Changelog
 
+### v1.1.1
+
+- Recompile the code to be compatible with v 73
+
 ### v1.1.0
 
 - Update a lot of sounds effects
