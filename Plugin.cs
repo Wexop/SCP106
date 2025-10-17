@@ -20,7 +20,7 @@ namespace SCP106
 
         const string GUID = "project_scp.scp_106";
         const string NAME = "SCP_106";
-        const string VERSION = "1.1.1";
+        const string VERSION = "1.1.2";
 
         public static SCP106Plugin instance;
 
