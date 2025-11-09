@@ -318,7 +318,7 @@ public class SCP106EnemyAI: EnemyAI
             }
             case 1:
             {
-                creatureVoice.PlayOneShot(seePlayerSound);
+                if(SCP106Plugin.instance.screamSound.Value) creatureVoice.PlayOneShot(seePlayerSound);
                 agent.speed = runSpeed;
                 creatureAnimator.SetBool(Run, true);
                 
@@ -328,7 +328,7 @@ public class SCP106EnemyAI: EnemyAI
             }
             case 2:
             {
-                creatureVoice.PlayOneShot(seePlayerSound);
+                if(SCP106Plugin.instance.screamSound.Value) creatureVoice.PlayOneShot(seePlayerSound);
                 agent.speed = inDimensionSpeed;
                 creatureAnimator.SetBool(Run, true);
                 break;

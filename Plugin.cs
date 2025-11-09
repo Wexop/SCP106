@@ -20,7 +20,7 @@ namespace SCP106
 
         const string GUID = "project_scp.scp_106";
         const string NAME = "SCP_106";
-        const string VERSION = "1.1.2";
+        const string VERSION = "1.1.3";
 
         public static SCP106Plugin instance;
 
@@ -38,6 +38,7 @@ namespace SCP106
         public ConfigEntry<float> trapLifeTime;
         public ConfigEntry<bool> trapInstantTeleport;
         public ConfigEntry<int> numberOfGoodDoor;
+        public ConfigEntry<bool> screamSound;
         public ConfigEntry<bool> debug;
 
         void Awake()
@@ -128,6 +129,10 @@ namespace SCP106
             trapLifeTime = Config.Bind("General", "trapLifeTime", 60f,
                 "Trap life duration (seconds). No need to restart the game !");
             CreateFloatConfig(trapLifeTime, 0f, 200f);
+                        
+            screamSound = Config.Bind("General", "Scream Sound", true,
+                "Enable SCP106 to scream when he see a player. No need to restart the game !");
+            CreateBoolConfig(screamSound);
             
             trapInstantTeleport = Config.Bind("General", "trapInstantTeleport", false,
                 "Enable traps to instant teleport players into pocket dimension. No need to restart the game !");
@@ -140,6 +145,7 @@ namespace SCP106
             dimensionPosY = Config.Bind("Pocket Dimension", "dimensionPosY", 550f,
                 "Dimension Y position. No need to restart the game !");
             CreateFloatConfig(dimensionPosY, 0f, 3000f);
+
             
 
             

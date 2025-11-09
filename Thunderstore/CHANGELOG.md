@@ -1,5 +1,9 @@
 # Changelog
 
+### v1.1.3
+
+- Add a config to enable scream sound
+
 ### v1.1.1 -> 1.1.2
 
 - Recompile the code to be compatible with v 73
